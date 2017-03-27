@@ -3,8 +3,6 @@ package org.lunapark.dev.war4peace1;
 import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.Point;
-import android.media.AudioManager;
-import android.media.SoundPool;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.KeyEvent;
@@ -14,10 +12,12 @@ import android.view.WindowManager;
 import android.widget.Button;
 
 import org.lunapark.dev.war4peace1.managers.ObjectManager;
+import org.lunapark.dev.war4peace1.managers.SoundManager;
 import org.lunapark.dev.war4peace1.managers.TextureManager;
 import org.lunapark.dev.war4peace1.managers.WorldManager;
 import org.lunapark.dev.war4peace1.objects.Body2d;
 import org.lunapark.dev.war4peace1.objects.Bullet;
+import org.lunapark.dev.war4peace1.objects.CharPlayer;
 
 import java.util.ArrayList;
 
@@ -58,15 +58,20 @@ public class GameActivity extends Activity implements SmartGLViewController {
     private ObjectManager objectManager;
     private TextureManager textureManager;
     private WorldManager worldManager;
+    private SoundManager soundManager;
     private ArrayList<Body2d> solids;
+
+    // Textures
+    private Texture txFire;
 
     // Player
     private Object3D player, legLeft, legRight, body;
     private float legsAngle1, legsAngle2, legsMult = 1;
 
-    private float playerX, playerY, playerZ;
+    private CharPlayer charPlayer;
+
+//    private float playerX, playerY, playerZ;
     private float dx, dz;
-    private float bodyRotY;
 
     // Game
     private boolean gameover = false;
@@ -86,10 +91,6 @@ public class GameActivity extends Activity implements SmartGLViewController {
     private int knobLimitDistance;
     private Sprite joyBaseSprite, joyKnobSprite;
     private float joyX, joyY;
-
-    // Sounds
-    private SoundPool soundPool;
-    private int sfxShot, sfxImpact, sfxStep;
 
 
     @Override
@@ -127,26 +128,9 @@ public class GameActivity extends Activity implements SmartGLViewController {
             }
         });
 
-        // Prepare sound
-        soundPool = new SoundPool(4, AudioManager.STREAM_MUSIC, 0);
-        soundPool.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener() {
-            @Override
-            public void onLoadComplete(SoundPool soundPool, int sampleId, int status) {
-
-            }
-        });
-        loadSounds();
     }
 
-    private void loadSounds() {
-        sfxShot = soundPool.load(this, R.raw.sfx_shot, 1);
-        sfxImpact = soundPool.load(this, R.raw.sfx_impact, 1);
-        sfxStep = soundPool.load(this, R.raw.sfx_step, 1);
-    }
 
-    private void playSoundMono(int id) {
-        soundPool.play(id, 0.5f, 0.5f, 1, 0, 1);
-    }
 
     @Override
     public void onPrepareView(SmartGLView smartGLView) {
@@ -170,9 +154,17 @@ public class GameActivity extends Activity implements SmartGLViewController {
         textureManager = new TextureManager();
         solids = new ArrayList<>();
         worldManager = new WorldManager(this, textureManager, objectManager, solids);
+        soundManager = new SoundManager(this);
 
         worldManager.defineLevelFloor();
+
+        txFire = textureManager.createTexture(Color.YELLOW);
+
         definePlayer();
+
+//        charPlayer = new CharPlayer(textureManager, objectManager);
+
+
         defineWeapon();
         worldManager.defineLevelWalls();
         defineJoystick(renderPassSprite);
@@ -200,6 +192,12 @@ public class GameActivity extends Activity implements SmartGLViewController {
         renderPassSprite.addSprite(joyKnobSprite);
     }
 
+    private void defPlayer() {
+        Texture txBody = textureManager.createTexture(this, R.drawable.survivor);
+        Texture txLeg = textureManager.createTexture(this, R.drawable.camo);
+        charPlayer.definePlayer(txBody, 2.5f, 1, txLeg, 1.3f, 0.25f);
+    }
+
     private void definePlayer() {
         Texture txLegs = textureManager.createTexture(this, R.drawable.camo);
         legLeft = objectManager.createObject(R.raw.plane_l, txLegs);
@@ -215,13 +213,13 @@ public class GameActivity extends Activity implements SmartGLViewController {
         Texture txBody = textureManager.createTexture(this, R.drawable.survivor);
         body = objectManager.createObject(R.raw.plane, txBody);
         body.setScale(2.5f, 1, 1);
-    }
 
-    private void defineWeapon() {
-        Texture txFire = textureManager.createTexture(Color.YELLOW);
         bulletSpawn = objectManager.createObject(R.raw.plane, txFire);
         bulletSpawn.setScale(0.2f, 0.2f, 0.2f);
         bulletSpawn.setVisible(false);
+    }
+
+    private void defineWeapon() {
 
         bullets = new ArrayList<>();
         for (int i = 0; i < MAX_BULLETS; i++) {
@@ -247,20 +245,22 @@ public class GameActivity extends Activity implements SmartGLViewController {
             });
         }
 
-        soundPool.release();
+        soundManager.dispose();
     }
 
     private void update(float delta, OpenGLCamera camera) {
-        updatePlayer(delta);
-        updateBullets(delta, bodyRotY);
-        updateCamera(delta, camera);
-        worldManager.updateFloor(playerX, playerZ);
+        float playerX = player.getPosX();
+        float playerY = player.getPosY();
+        float playerZ = player.getPosZ();
+
+        updateCamera(delta, camera, playerX, playerY, playerZ);
+        updatePlayer(delta, dx, dz, playerX, playerY, playerZ);
+        updateBullets(delta, bulletSpawn);
+
+        worldManager.updateFloor(player.getPosX(), player.getPosZ());
     }
 
-    private void updatePlayer(float delta) {
-        playerX = player.getPosX();
-        playerY = player.getPosY();
-        playerZ = player.getPosZ();
+    private void updatePlayer(float delta, float dx, float dz, float playerX, float playerY, float playerZ) {
 
         float newX = playerX + dx * delta * SPEED_PLAYER;
         float newZ = playerZ + dz * delta * SPEED_PLAYER;
@@ -271,7 +271,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
             if (dx != 0 || dz != 0) {
                 if ((legsAngle1 >= 140) || (legsAngle1 <= 40)) {
                     legsMult = -legsMult;
-                    playSoundMono(sfxStep);
+                    soundManager.playSoundMono(SoundManager.sfxStep);
                 }
                 float legsDelta = SPEED_LEGS * legsMult;
                 legsAngle1 += legsDelta;
@@ -291,7 +291,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
         body.setRotation(0, playerRotY, 0);
         body.addRotY((90 - legsAngle1) / 10);
 
-        bodyRotY = body.getRotY();
+        float bodyRotY = body.getRotY();
 
         legLeft.setPos(playerX, playerY, playerZ);
         legRight.setPos(playerX, playerY, playerZ);
@@ -306,7 +306,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
         bulletSpawn.setRotation(0, bodyRotY + 45, 0);
     }
 
-    private void updateCamera(float delta, OpenGLCamera camera) {
+    private void updateCamera(float delta, OpenGLCamera camera, float playerX, float playerY, float playerZ) {
         float camX = playerX + cameraX;
         float camZ = playerZ + cameraZ;
         if (cameraZ > cameraTargetZ) {
@@ -324,17 +324,17 @@ public class GameActivity extends Activity implements SmartGLViewController {
         camera.setPosition(camX, playerY + CAMERA_Y, camZ);
     }
 
-    private void updateBullets(float delta, float direction) {
+    private void updateBullets(float delta, Object3D bulletSpawn) {
         // Create new bullets
         long currentTime = System.currentTimeMillis();
         if ((currentTime - shootTime > FIRE_RATE) && fire) {
             shootTime = currentTime;
             bulletSpawn.setVisible(true);
-            playSoundMono(sfxShot);
+            soundManager.playSoundMono(SoundManager.sfxShot);
             for (int i = 0; i < bullets.size(); i++) {
                 Bullet bullet = bullets.get(i);
                 if (!bullet.isVisible()) {
-                    bullet.create(bulletSpawn.getPosX(), playerY, bulletSpawn.getPosZ(), direction);
+                    bullet.create(bulletSpawn.getPosX(), bulletSpawn.getPosY(), bulletSpawn.getPosZ(), bulletSpawn.getRotY() - 45);
                     break;
                 }
             }
@@ -350,7 +350,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
                 bullet.update(delta);
                 if (checkWallIntersect(bullet.getBody2d())) {
                     bullet.hide();
-                    playSoundMono(sfxImpact);
+                    soundManager.playSoundMono(SoundManager.sfxImpact);
                 }
             }
         }
@@ -449,12 +449,9 @@ public class GameActivity extends Activity implements SmartGLViewController {
         player.setRotation(0, 180, 0);
     }
 
-
     @Override
     public void onTouchEvent(SmartGLView smartGLView, TouchHelperEvent touchHelperEvent) {
         TouchHelperEvent.TouchEventType type = touchHelperEvent.getType();
-//        Log.e(TAG, "NBFingers: " + touchHelperEvent.getNbFingers());
-//        Log.e(TAG, "NBTaps: " + touchHelperEvent.getNbTaps());
 
         int fingers = touchHelperEvent.getNbFingers();
         for (int i = 0; i < fingers; i++) {
@@ -511,7 +508,6 @@ public class GameActivity extends Activity implements SmartGLViewController {
             dz = 0;
             dx = 0;
         }
-
         updateJoystick();
     }
 
