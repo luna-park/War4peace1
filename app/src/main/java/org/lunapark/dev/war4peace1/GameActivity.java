@@ -63,6 +63,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
 
     // Textures
     private Texture txFire;
+    private Texture txBody, txLeg, txPlayer;
 
     // Player
     private Object3D player, legLeft, legRight, body;
@@ -70,7 +71,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
 
     private CharPlayer charPlayer;
 
-//    private float playerX, playerY, playerZ;
+    //    private float playerX, playerY, playerZ;
     private float dx, dz;
 
     // Game
@@ -88,9 +89,10 @@ public class GameActivity extends Activity implements SmartGLViewController {
     // Joystick
     private boolean joyVisible = false;
     private float joyDeltaX, joyDeltaY;
-    private int knobLimitDistance;
+    private int knobLimitDistance, joyTolerance;
     private Sprite joyBaseSprite, joyKnobSprite;
     private float joyX, joyY;
+    private Texture joyTexture, knobTexture;
 
 
     @Override
@@ -129,7 +131,6 @@ public class GameActivity extends Activity implements SmartGLViewController {
         });
 
     }
-
 
 
     @Override
@@ -172,11 +173,12 @@ public class GameActivity extends Activity implements SmartGLViewController {
 
     private void defineJoystick(RenderPassSprite renderPassSprite) {
         // Create joystick
-        Texture joyTexture = textureManager.createTexture(this, R.drawable.gamepad);
-        Texture knobTexture = textureManager.createTexture(this, R.drawable.knob);
+        joyTexture = textureManager.createTexture(this, R.drawable.gamepad);
+        knobTexture = textureManager.createTexture(this, R.drawable.knob);
 
         int joySize = screenX / 4;
         knobLimitDistance = joySize / 3;
+        joyTolerance = knobLimitDistance / 5;
 
         joyBaseSprite = new Sprite(joySize, joySize);
         joyBaseSprite.setPivot(0.5f, 0.5f);
@@ -193,24 +195,24 @@ public class GameActivity extends Activity implements SmartGLViewController {
     }
 
     private void defPlayer() {
-        Texture txBody = textureManager.createTexture(this, R.drawable.survivor);
-        Texture txLeg = textureManager.createTexture(this, R.drawable.camo);
+        txBody = textureManager.createTexture(this, R.drawable.survivor);
+        txLeg = textureManager.createTexture(this, R.drawable.camo);
         charPlayer.definePlayer(txBody, 2.5f, 1, txLeg, 1.3f, 0.25f);
     }
 
     private void definePlayer() {
-        Texture txLegs = textureManager.createTexture(this, R.drawable.camo);
-        legLeft = objectManager.createObject(R.raw.plane_l, txLegs);
+        txLeg = textureManager.createTexture(this, R.drawable.camo);
+        legLeft = objectManager.createObject(R.raw.plane_l, txLeg);
         legLeft.setScale(1.3f, 1, 0.25f);
 
-        legRight = objectManager.createObject(R.raw.plane_r, txLegs);
+        legRight = objectManager.createObject(R.raw.plane_r, txLeg);
         legRight.setScale(1.3f, 1, 0.25f);
 
-        Texture txPlayer = textureManager.createTexture(Color.TRANSPARENT);
+        txPlayer = textureManager.createTexture(Color.TRANSPARENT);
         player = objectManager.createObject(R.raw.plane, txPlayer);
         player.setPos(0, 1.3f, 0);
 
-        Texture txBody = textureManager.createTexture(this, R.drawable.survivor);
+        txBody = textureManager.createTexture(this, R.drawable.survivor);
         body = objectManager.createObject(R.raw.plane, txBody);
         body.setScale(2.5f, 1, 1);
 
@@ -471,30 +473,37 @@ public class GameActivity extends Activity implements SmartGLViewController {
                             float modX = Math.abs(x);
                             float modY = Math.abs(y);
 
-                            if (modX > modY) {
-                                if (x > 0) {
-                                    // move right
-                                    joyDeltaX = knobLimitDistance;
-                                    joyDeltaY = 0;
-                                    movePlayerRight();
+                            if (modX > joyTolerance || modY > joyTolerance) {
+                                if (modX > modY) {
+                                    if (x > 0) {
+                                        // move right
+                                        joyDeltaX = knobLimitDistance;
+                                        joyDeltaY = 0;
+                                        movePlayerRight();
+                                    } else {
+                                        // move left
+                                        joyDeltaX = -knobLimitDistance;
+                                        joyDeltaY = 0;
+                                        movePlayerLeft();
+                                    }
                                 } else {
-                                    // move left
-                                    joyDeltaX = -knobLimitDistance;
-                                    joyDeltaY = 0;
-                                    movePlayerLeft();
+                                    if (y > 0) {
+                                        // move down
+                                        joyDeltaX = 0;
+                                        joyDeltaY = knobLimitDistance;
+                                        movePlayerDown();
+                                    } else {
+                                        // move up
+                                        joyDeltaX = 0;
+                                        joyDeltaY = -knobLimitDistance;
+                                        movePlayerUp();
+                                    }
                                 }
                             } else {
-                                if (y > 0) {
-                                    // move down
-                                    joyDeltaX = 0;
-                                    joyDeltaY = knobLimitDistance;
-                                    movePlayerDown();
-                                } else {
-                                    // move up
-                                    joyDeltaX = 0;
-                                    joyDeltaY = -knobLimitDistance;
-                                    movePlayerUp();
-                                }
+                                joyDeltaX = 0;
+                                joyDeltaY = 0;
+                                dz = 0;
+                                dx = 0;
                             }
                         }
                         break;

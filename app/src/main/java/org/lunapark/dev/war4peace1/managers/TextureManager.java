@@ -27,7 +27,6 @@ public class TextureManager {
 
     public Texture createTexture(Context context, int resId) {
         Texture texture = new Texture(context, resId);
-
         textures.add(texture);
         return texture;
     }
