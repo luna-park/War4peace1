@@ -17,7 +17,7 @@ import org.lunapark.dev.war4peace1.managers.TextureManager;
 import org.lunapark.dev.war4peace1.managers.WorldManager;
 import org.lunapark.dev.war4peace1.objects.Body2d;
 import org.lunapark.dev.war4peace1.objects.Bullet;
-import org.lunapark.dev.war4peace1.objects.CharPlayer;
+import org.lunapark.dev.war4peace1.objects.Character;
 
 import java.util.ArrayList;
 
@@ -38,12 +38,9 @@ import static org.lunapark.dev.war4peace1.utils.Consts.CAMERA_SPEED;
 import static org.lunapark.dev.war4peace1.utils.Consts.CAMERA_X_ANGLE;
 import static org.lunapark.dev.war4peace1.utils.Consts.CAMERA_Y;
 import static org.lunapark.dev.war4peace1.utils.Consts.FIRE_RATE;
-import static org.lunapark.dev.war4peace1.utils.Consts.FIRE_SOURCE_ANGLE;
-import static org.lunapark.dev.war4peace1.utils.Consts.FIRE_SOURCE_RANGE;
 import static org.lunapark.dev.war4peace1.utils.Consts.MAX_BULLETS;
 import static org.lunapark.dev.war4peace1.utils.Consts.PLAYER_HEIGHT;
 import static org.lunapark.dev.war4peace1.utils.Consts.PLAYER_WIDTH;
-import static org.lunapark.dev.war4peace1.utils.Consts.SPEED_LEGS;
 import static org.lunapark.dev.war4peace1.utils.Consts.SPEED_PLAYER;
 
 public class GameActivity extends Activity implements SmartGLViewController {
@@ -63,16 +60,17 @@ public class GameActivity extends Activity implements SmartGLViewController {
 
     // Textures
     private Texture txFire;
-    private Texture txBody, txLeg, txPlayer;
+    private Texture txBody, txLeg, txPlayer, txTransparent;
 
     // Player
-    private Object3D player, legLeft, legRight, body;
-    private float legsAngle1, legsAngle2, legsMult = 1;
+//    private Object3D player, legLeft, legRight, body;
+//    private float legsAngle1, legsAngle2, legsMult = 1;
 
-    private CharPlayer charPlayer;
 
     //    private float playerX, playerY, playerZ;
     private float dx, dz;
+
+    private Character character;
 
     // Game
     private boolean gameover = false;
@@ -81,7 +79,6 @@ public class GameActivity extends Activity implements SmartGLViewController {
     private float cameraTargetX, cameraTargetZ, cameraX, cameraZ;
 
     // Gun fire
-    private Object3D bulletSpawn;
     private boolean fire;
     private long shootTime;
     private ArrayList<Bullet> bullets;
@@ -160,13 +157,16 @@ public class GameActivity extends Activity implements SmartGLViewController {
         worldManager.defineLevelFloor();
 
         txFire = textureManager.createTexture(Color.YELLOW);
+        txTransparent = textureManager.createTexture(Color.TRANSPARENT);
+        txLeg = textureManager.createTexture(this, R.drawable.camo);
+        txPlayer = textureManager.createTexture(this, R.drawable.survivor);
 
-        definePlayer();
+//        definePlayer(txPlayer, txLeg, txFire);
 
-//        charPlayer = new CharPlayer(textureManager, objectManager);
+        character = new Character(objectManager, soundManager);
+        character.define(txPlayer, txLeg, txFire, 2.5f, 1, 1.3f);
 
-
-        defineWeapon();
+        defineBullets();
         worldManager.defineLevelWalls();
         defineJoystick(renderPassSprite);
     }
@@ -194,35 +194,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
         renderPassSprite.addSprite(joyKnobSprite);
     }
 
-    private void defPlayer() {
-        txBody = textureManager.createTexture(this, R.drawable.survivor);
-        txLeg = textureManager.createTexture(this, R.drawable.camo);
-        charPlayer.definePlayer(txBody, 2.5f, 1, txLeg, 1.3f, 0.25f);
-    }
-
-    private void definePlayer() {
-        txLeg = textureManager.createTexture(this, R.drawable.camo);
-        legLeft = objectManager.createObject(R.raw.plane_l, txLeg);
-        legLeft.setScale(1.3f, 1, 0.25f);
-
-        legRight = objectManager.createObject(R.raw.plane_r, txLeg);
-        legRight.setScale(1.3f, 1, 0.25f);
-
-        txPlayer = textureManager.createTexture(Color.TRANSPARENT);
-        player = objectManager.createObject(R.raw.plane, txPlayer);
-        player.setPos(0, 1.3f, 0);
-
-        txBody = textureManager.createTexture(this, R.drawable.survivor);
-        body = objectManager.createObject(R.raw.plane, txBody);
-        body.setScale(2.5f, 1, 1);
-
-        bulletSpawn = objectManager.createObject(R.raw.plane, txFire);
-        bulletSpawn.setScale(0.2f, 0.2f, 0.2f);
-        bulletSpawn.setVisible(false);
-    }
-
-    private void defineWeapon() {
-
+    private void defineBullets() {
         bullets = new ArrayList<>();
         for (int i = 0; i < MAX_BULLETS; i++) {
             Object3D bulletObj = objectManager.createObject(R.raw.plane, txFire);
@@ -251,62 +223,27 @@ public class GameActivity extends Activity implements SmartGLViewController {
     }
 
     private void update(float delta, OpenGLCamera camera) {
-        float playerX = player.getPosX();
-        float playerY = player.getPosY();
-        float playerZ = player.getPosZ();
-
-        updateCamera(delta, camera, playerX, playerY, playerZ);
-        updatePlayer(delta, dx, dz, playerX, playerY, playerZ);
-        updateBullets(delta, bulletSpawn);
-
-        worldManager.updateFloor(player.getPosX(), player.getPosZ());
-    }
-
-    private void updatePlayer(float delta, float dx, float dz, float playerX, float playerY, float playerZ) {
+        float playerX = character.getBase().getPosX();
+        float playerY = character.getBase().getPosY();
+        float playerZ = character.getBase().getPosZ();
 
         float newX = playerX + dx * delta * SPEED_PLAYER;
         float newZ = playerZ + dz * delta * SPEED_PLAYER;
 
-        if (!checkWallPlayerIntersect(newX, newZ)) {
+        boolean collision = checkWallPlayerIntersect(newX, newZ);
+
+        if (!collision) {
             playerX = newX;
             playerZ = newZ;
-            if (dx != 0 || dz != 0) {
-                if ((legsAngle1 >= 140) || (legsAngle1 <= 40)) {
-                    legsMult = -legsMult;
-                    soundManager.playSoundMono(SoundManager.sfxStep);
-                }
-                float legsDelta = SPEED_LEGS * legsMult;
-                legsAngle1 += legsDelta;
-                legsAngle2 -= legsDelta;
-            } else {
-                legsAngle1 = 90;
-                legsAngle2 = 90;
-            }
-        } else {
-            legsAngle1 = 90;
-            legsAngle2 = 90;
         }
 
-        float playerRotY = player.getRotY();
-        player.setPos(playerX, playerY, playerZ);
-        body.setPos(playerX, playerY, playerZ);
-        body.setRotation(0, playerRotY, 0);
-        body.addRotY((90 - legsAngle1) / 10);
-
-        float bodyRotY = body.getRotY();
-
-        legLeft.setPos(playerX, playerY, playerZ);
-        legRight.setPos(playerX, playerY, playerZ);
-        legLeft.setRotation(0, playerRotY, legsAngle1);
-        legRight.setRotation(0, playerRotY, legsAngle2);
-
-        // update bulletSpawn
-        float phi = FIRE_SOURCE_ANGLE + bodyRotY;
-        float fireSourceX = playerX - (float) (FIRE_SOURCE_RANGE * Math.cos(Math.toRadians(phi)));
-        float fireSourceZ = playerZ + (float) (FIRE_SOURCE_RANGE * Math.sin(Math.toRadians(phi)));
-        bulletSpawn.setPos(fireSourceX, playerY, fireSourceZ);
-        bulletSpawn.setRotation(0, bodyRotY + 45, 0);
+        updateCamera(delta, camera, playerX, playerY, playerZ);
+        character.update(dx, dz, playerX, playerY, playerZ, !collision);
+        updateBullets(delta);
+        if (fire) gunfire(character);
+        worldManager.updateFloor(playerX, playerZ);
     }
+
 
     private void updateCamera(float delta, OpenGLCamera camera, float playerX, float playerY, float playerZ) {
         float camX = playerX + cameraX;
@@ -326,13 +263,13 @@ public class GameActivity extends Activity implements SmartGLViewController {
         camera.setPosition(camX, playerY + CAMERA_Y, camZ);
     }
 
-    private void updateBullets(float delta, Object3D bulletSpawn) {
-        // Create new bullets
+    // Create new bullets
+    private void gunfire(Character character) {
+        Object3D bulletSpawn = character.getBulletSpawn();
         long currentTime = System.currentTimeMillis();
-        if ((currentTime - shootTime > FIRE_RATE) && fire) {
+        if (currentTime - shootTime > FIRE_RATE) {
             shootTime = currentTime;
-            bulletSpawn.setVisible(true);
-            soundManager.playSoundMono(SoundManager.sfxShot);
+            character.fire();
             for (int i = 0; i < bullets.size(); i++) {
                 Bullet bullet = bullets.get(i);
                 if (!bullet.isVisible()) {
@@ -340,11 +277,10 @@ public class GameActivity extends Activity implements SmartGLViewController {
                     break;
                 }
             }
-
-        } else {
-            bulletSpawn.setVisible(false);
         }
+    }
 
+    private void updateBullets(float delta) {
         // Update current bullets
         for (int i = 0; i < bullets.size(); i++) {
             Bullet bullet = bullets.get(i);
@@ -422,7 +358,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
     private void movePlayerUp() {
         dx = 0;
         dz = -1;
-        player.setRotation(0, -90, 0);
+        character.setRotY(-90);
         cameraTargetX = 0;
         cameraTargetZ = -5;
     }
@@ -430,25 +366,26 @@ public class GameActivity extends Activity implements SmartGLViewController {
     private void movePlayerDown() {
         dx = 0;
         dz = 1;
-        player.setRotation(0, 90, 0);
+        character.setRotY(90);
         cameraTargetX = 0;
         cameraTargetZ = 5;
     }
 
     private void movePlayerLeft() {
-        cameraTargetX = -5;
-        cameraTargetZ = 0;
+
         dx = -1;
         dz = 0;
-        player.setRotation(0, 0, 0);
+        character.setRotY(0);
+        cameraTargetX = -5;
+        cameraTargetZ = 0;
     }
 
     private void movePlayerRight() {
-        cameraTargetX = 5;
-        cameraTargetZ = 0;
         dx = 1;
         dz = 0;
-        player.setRotation(0, 180, 0);
+        character.setRotY(180);
+        cameraTargetX = 5;
+        cameraTargetZ = 0;
     }
 
     @Override
