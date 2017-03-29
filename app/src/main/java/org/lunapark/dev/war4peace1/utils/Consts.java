@@ -18,8 +18,8 @@ public class Consts {
     public static final int FLOOR_FAR_DISTANCE = FLOOR_DISTANCE / 2;
 
     // Player
-    public static final float PLAYER_WIDTH = 1;
-    public static final float PLAYER_HEIGHT = 1;
+    public static final float CHARACTER_WIDTH = 1;
+    public static final float CHARACTER_HEIGHT = 1;
     public static final int SPEED_PLAYER = 10;
     public static final int SPEED_LEGS = 8;
 
@@ -29,11 +29,6 @@ public class Consts {
     public static final int CAMERA_SPEED = 10;
 
     // Gun fire
-    private static final float FIRE_SOURCE_DELTA_X = 1.4f;
-    private static final float FIRE_SOURCE_DELTA_Z = 0.26f;
-    public static final float FIRE_SOURCE_RANGE = (float) Math.sqrt(FIRE_SOURCE_DELTA_X * FIRE_SOURCE_DELTA_X + FIRE_SOURCE_DELTA_Z * FIRE_SOURCE_DELTA_Z);
-    public static final float FIRE_SOURCE_ANGLE = (float) Math.toDegrees(Math.atan(FIRE_SOURCE_DELTA_Z / FIRE_SOURCE_DELTA_X));
-
     public static final int FIRE_RATE = 100; // milliseconds
     public static final int MAX_BULLETS = 100; // maximum bullets
     public static final int BULLET_SPEED = 5;

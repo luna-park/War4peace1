@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import fr.arnaudguyon.smartgl.opengl.Object3D;
 import fr.arnaudguyon.smartgl.opengl.Texture;
 
+import static org.lunapark.dev.war4peace1.utils.Consts.CHARACTER_HEIGHT;
+import static org.lunapark.dev.war4peace1.utils.Consts.CHARACTER_WIDTH;
 import static org.lunapark.dev.war4peace1.utils.Consts.FLOOR_DISTANCE;
 import static org.lunapark.dev.war4peace1.utils.Consts.FLOOR_FAR_DISTANCE;
 import static org.lunapark.dev.war4peace1.utils.Consts.FLOOR_SEGMENTS;
@@ -28,12 +30,12 @@ public class WorldManager {
     private final ObjectManager objectManager;
     private final Context context;
 
-    public WorldManager(Context context, TextureManager textureManager, ObjectManager objectManager, ArrayList<Body2d> solids) {
-        this.solids = solids;
+    public WorldManager(Context context, TextureManager textureManager, ObjectManager objectManager) {
         this.textureManager = textureManager;
         this.objectManager = objectManager;
         this.context = context;
         floor = new ArrayList<>();
+        solids = new ArrayList<>();
     }
 
     public void defineLevelFloor() {
@@ -117,5 +119,54 @@ public class WorldManager {
         } else {
             return (float) Math.sqrt(mDX * mDX + mDY * mDY + mDZ * mDZ);
         }
+    }
+
+
+    public boolean checkWallIntersect(Body2d body2d) {
+
+        for (int i = 0; i < solids.size(); i++) {
+            Body2d wall = solids.get(i);
+            if (intersect(wall, body2d)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean checkWallwithCharIntersect(float pX, float pZ) {
+
+        for (int i = 0; i < solids.size(); i++) {
+            Body2d wall = solids.get(i);
+            if (intersectPlayer(wall, pX, pZ)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    private boolean intersect(Body2d o1, Body2d o2) {
+        float dx = Math.abs(o1.x - o2.x);
+        float dz = Math.abs(o1.z - o2.z);
+        float a = o1.width;
+        float b = o1.height;
+        float c = o2.width;
+        float d = o2.height;
+
+        float dMax = (a + c) / 2;
+        float eMax = (b + d) / 2;
+
+        return (dx < dMax) && (dz < eMax);
+    }
+
+    private boolean intersectPlayer(Body2d o1, float pX, float pZ) {
+        float dx = Math.abs(o1.x - pX);
+        float dz = Math.abs(o1.z - pZ);
+        float a = o1.width;
+        float b = o1.height;
+
+        float dMax = (a + CHARACTER_WIDTH) / 2;
+        float eMax = (b + CHARACTER_HEIGHT) / 2;
+        return (dx < dMax) && (dz < eMax);
     }
 }

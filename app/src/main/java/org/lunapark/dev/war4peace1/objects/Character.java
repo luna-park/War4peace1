@@ -8,8 +8,6 @@ import fr.arnaudguyon.smartgl.opengl.Object3D;
 import fr.arnaudguyon.smartgl.opengl.Texture;
 
 import static org.lunapark.dev.war4peace1.utils.Consts.FIRE_RATE;
-import static org.lunapark.dev.war4peace1.utils.Consts.FIRE_SOURCE_ANGLE;
-import static org.lunapark.dev.war4peace1.utils.Consts.FIRE_SOURCE_RANGE;
 import static org.lunapark.dev.war4peace1.utils.Consts.SPEED_LEGS;
 
 /**
@@ -19,32 +17,42 @@ import static org.lunapark.dev.war4peace1.utils.Consts.SPEED_LEGS;
 
 public class Character {
     private Object3D base, legLeft, legRight, body, bulletSpawn;
-    private float legsAngle1, legsAngle2, legsMult = 1;
+    private float legsAngle1, legsAngle2, legsMult = 1, playerRotY = 0;
     private SoundManager soundManager;
     private ObjectManager objectManager;
 
     private long fireTime;
 
+    // Default bullet spawn
+    private float bulletSpawnX = 1.4f;
+    private float bulletSpawnZ = 0.26f;
+    private float bulletSpawnRange = (float) Math.sqrt(bulletSpawnX * bulletSpawnX + bulletSpawnZ * bulletSpawnZ);
+    private float bulletSpawnAngle = (float) Math.toDegrees(Math.atan(bulletSpawnZ / bulletSpawnX));
 
     public Character(ObjectManager objectManager, SoundManager soundManager) {
         this.objectManager = objectManager;
         this.soundManager = soundManager;
     }
 
-    public void define(Texture txBody, Texture txLeg, Texture txFire, float length, float width, float h) {
+    public void define(Texture txBody, Texture txLeg, Texture txFire, float scaleX, float height) {
         legLeft = objectManager.createObject(R.raw.plane_l, txLeg);
-        legLeft.setScale(h, 1, 0.25f);
+        legLeft.setScale(height, 1, 0.25f);
         legRight = objectManager.createObject(R.raw.plane_r, txLeg);
-        legRight.setScale(h, 1, 0.25f);
+        legRight.setScale(height, 1, 0.25f);
         base = objectManager.createObject(R.raw.plane, txLeg);
         base.setScale(0.1f, 0.1f, 0.1f);
-        base.setPos(0, h, 0);
+        base.setPos(0, height, 0);
         body = objectManager.createObject(R.raw.plane, txBody);
-        body.setScale(length, 1, width);
+        body.setScale(scaleX, 1, 1);
 
         bulletSpawn = objectManager.createObject(R.raw.plane, txFire);
         bulletSpawn.setScale(0.2f, 0.2f, 0.2f);
         bulletSpawn.setVisible(false);
+    }
+
+    public void setBulletSpawn(float bulletSpawnX, float bulletSpawnZ) {
+        bulletSpawnRange = (float) Math.sqrt(bulletSpawnX * bulletSpawnX + bulletSpawnZ * bulletSpawnZ);
+        bulletSpawnAngle = (float) Math.toDegrees(Math.atan(bulletSpawnZ / bulletSpawnX));
     }
 
     public void update(float deltaX, float deltaZ, float x, float y, float z, boolean animateLegs) {
@@ -66,7 +74,27 @@ public class Character {
             legsAngle2 = 90;
         }
 
-        float playerRotY = base.getRotY();
+
+        if (deltaX == 0) {
+            if (deltaZ == 1) {
+                playerRotY = 90;
+            }
+            if (deltaZ == -1) {
+                playerRotY = -90;
+            }
+        }
+
+        if (deltaZ == 0) {
+            if (deltaX == 1) {
+                playerRotY = 180;
+            }
+            if (deltaX == -1) {
+                playerRotY = 0;
+            }
+        }
+
+//        float playerRotY = base.getRotY();
+        base.setRotation(0, playerRotY, 0);
         base.setPos(x, y, z);
         body.setPos(x, y, z);
         body.setRotation(0, playerRotY, 0);
@@ -80,9 +108,9 @@ public class Character {
         legRight.setRotation(0, playerRotY, legsAngle2);
 
         // update playerBulletSpawn
-        float phi = FIRE_SOURCE_ANGLE + bodyRotY;
-        float fireSourceX = x - (float) (FIRE_SOURCE_RANGE * Math.cos(Math.toRadians(phi)));
-        float fireSourceZ = z + (float) (FIRE_SOURCE_RANGE * Math.sin(Math.toRadians(phi)));
+        float phi = bulletSpawnAngle + bodyRotY;
+        float fireSourceX = x - (float) (bulletSpawnRange * Math.cos(Math.toRadians(phi)));
+        float fireSourceZ = z + (float) (bulletSpawnRange * Math.sin(Math.toRadians(phi)));
         bulletSpawn.setPos(fireSourceX, y, fireSourceZ);
         bulletSpawn.setRotation(0, bodyRotY + 45, 0);
 
@@ -101,9 +129,14 @@ public class Character {
         return bulletSpawn;
     }
 
-    public void fire() {
-        soundManager.playSoundMono(SoundManager.sfxShot);
-        bulletSpawn.setVisible(true);
+    public boolean fire() {
+        if (!bulletSpawn.isVisible()) {
+            soundManager.playSoundMono(SoundManager.sfxShot);
+            bulletSpawn.setVisible(true);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public void setRotY(float angle) {

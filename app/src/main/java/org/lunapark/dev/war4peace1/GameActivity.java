@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 
+import org.lunapark.dev.war4peace1.managers.ArtificalIntelligence;
 import org.lunapark.dev.war4peace1.managers.ObjectManager;
 import org.lunapark.dev.war4peace1.managers.SoundManager;
 import org.lunapark.dev.war4peace1.managers.TextureManager;
@@ -18,6 +19,7 @@ import org.lunapark.dev.war4peace1.managers.WorldManager;
 import org.lunapark.dev.war4peace1.objects.Body2d;
 import org.lunapark.dev.war4peace1.objects.Bullet;
 import org.lunapark.dev.war4peace1.objects.Character;
+import org.lunapark.dev.war4peace1.objects.CharacterData;
 
 import java.util.ArrayList;
 
@@ -39,8 +41,8 @@ import static org.lunapark.dev.war4peace1.utils.Consts.CAMERA_X_ANGLE;
 import static org.lunapark.dev.war4peace1.utils.Consts.CAMERA_Y;
 import static org.lunapark.dev.war4peace1.utils.Consts.FIRE_RATE;
 import static org.lunapark.dev.war4peace1.utils.Consts.MAX_BULLETS;
-import static org.lunapark.dev.war4peace1.utils.Consts.PLAYER_HEIGHT;
-import static org.lunapark.dev.war4peace1.utils.Consts.PLAYER_WIDTH;
+import static org.lunapark.dev.war4peace1.utils.Consts.CHARACTER_HEIGHT;
+import static org.lunapark.dev.war4peace1.utils.Consts.CHARACTER_WIDTH;
 import static org.lunapark.dev.war4peace1.utils.Consts.SPEED_PLAYER;
 
 public class GameActivity extends Activity implements SmartGLViewController {
@@ -56,21 +58,16 @@ public class GameActivity extends Activity implements SmartGLViewController {
     private TextureManager textureManager;
     private WorldManager worldManager;
     private SoundManager soundManager;
-    private ArrayList<Body2d> solids;
+    private ArtificalIntelligence artificalIntelligence;
+//    private ArrayList<Body2d> solids;
 
     // Textures
     private Texture txFire;
     private Texture txBody, txLeg, txPlayer, txTransparent;
 
     // Player
-//    private Object3D player, legLeft, legRight, body;
-//    private float legsAngle1, legsAngle2, legsMult = 1;
-
-
-    //    private float playerX, playerY, playerZ;
     private float dx, dz;
-
-    private Character character;
+    private Character player, enemy;
 
     // Game
     private boolean gameover = false;
@@ -80,7 +77,6 @@ public class GameActivity extends Activity implements SmartGLViewController {
 
     // Gun fire
     private boolean fire;
-    private long shootTime;
     private ArrayList<Bullet> bullets;
 
     // Joystick
@@ -135,7 +131,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
         SmartGLRenderer renderer = smartGLView.getSmartGLRenderer();
 
         RenderPassObject3D.ShaderType shaderType = RenderPassObject3D.ShaderType.SHADER_TEXTURE;
-        RenderPassObject3D renderPassObject3D = new RenderPassObject3D(shaderType, true, true);
+        RenderPassObject3D renderPassObject3D = new RenderPassObject3D(shaderType, false, true);
 
         RenderPassSprite renderPassSprite = new RenderPassSprite();
 
@@ -150,8 +146,9 @@ public class GameActivity extends Activity implements SmartGLViewController {
 
         objectManager = new ObjectManager(this, renderPassObject3D);
         textureManager = new TextureManager();
-        solids = new ArrayList<>();
-        worldManager = new WorldManager(this, textureManager, objectManager, solids);
+
+        worldManager = new WorldManager(this, textureManager, objectManager);
+        artificalIntelligence = new ArtificalIntelligence(worldManager);
         soundManager = new SoundManager(this);
 
         worldManager.defineLevelFloor();
@@ -161,10 +158,14 @@ public class GameActivity extends Activity implements SmartGLViewController {
         txLeg = textureManager.createTexture(this, R.drawable.camo);
         txPlayer = textureManager.createTexture(this, R.drawable.survivor);
 
-//        definePlayer(txPlayer, txLeg, txFire);
+        player = new Character(objectManager, soundManager);
+        player.define(txPlayer, txLeg, txFire, 2.5f, 1);
+        player.setBulletSpawn(1.4f, 0.26f);
 
-        character = new Character(objectManager, soundManager);
-        character.define(txPlayer, txLeg, txFire, 2.5f, 1, 1.3f);
+        enemy = new Character(objectManager, soundManager);
+        enemy.define(txPlayer, txLeg, txFire, 2.5f, 1);
+        enemy.setBulletSpawn(1.4f, 0.26f);
+        enemy.getBase().setPos(10, 1, 20);
 
         defineBullets();
         worldManager.defineLevelWalls();
@@ -223,27 +224,52 @@ public class GameActivity extends Activity implements SmartGLViewController {
     }
 
     private void update(float delta, OpenGLCamera camera) {
-        float playerX = character.getBase().getPosX();
-        float playerY = character.getBase().getPosY();
-        float playerZ = character.getBase().getPosZ();
+        float playerX = player.getBase().getPosX();
+        float playerY = player.getBase().getPosY();
+        float playerZ = player.getBase().getPosZ();
 
         float newX = playerX + dx * delta * SPEED_PLAYER;
         float newZ = playerZ + dz * delta * SPEED_PLAYER;
 
-        boolean collision = checkWallPlayerIntersect(newX, newZ);
+        boolean collision = worldManager.checkWallwithCharIntersect(newX, newZ);
 
         if (!collision) {
             playerX = newX;
             playerZ = newZ;
         }
+        player.update(dx, dz, playerX, playerY, playerZ, !collision);
+        if (fire) gunfire(player);
+
+        updateEnemy(delta, playerX, playerZ);
 
         updateCamera(delta, camera, playerX, playerY, playerZ);
-        character.update(dx, dz, playerX, playerY, playerZ, !collision);
         updateBullets(delta);
-        if (fire) gunfire(character);
+
         worldManager.updateFloor(playerX, playerZ);
     }
 
+    private void updateEnemy(float delta, float playerX, float playerZ) {
+        float x = enemy.getBase().getPosX();
+        float y = enemy.getBase().getPosY();
+        float z = enemy.getBase().getPosZ();
+
+        CharacterData data = artificalIntelligence.getData(enemy, playerX, playerZ);
+
+        float dx = data.deltaX;
+        float dz = data.deltaZ;
+        if (data.canShoot) gunfire(enemy);
+
+        float newX = x + dx * delta * SPEED_PLAYER * 0.75f;
+        float newZ = z + dz * delta * SPEED_PLAYER * 0.75f;
+
+        boolean collision = worldManager.checkWallwithCharIntersect(newX, newZ);
+
+        if (!collision) {
+            x = newX;
+            z = newZ;
+        }
+        enemy.update(dx, dz, x, y, z, !collision);
+    }
 
     private void updateCamera(float delta, OpenGLCamera camera, float playerX, float playerY, float playerZ) {
         float camX = playerX + cameraX;
@@ -266,10 +292,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
     // Create new bullets
     private void gunfire(Character character) {
         Object3D bulletSpawn = character.getBulletSpawn();
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - shootTime > FIRE_RATE) {
-            shootTime = currentTime;
-            character.fire();
+        if (character.fire()) {
             for (int i = 0; i < bullets.size(); i++) {
                 Bullet bullet = bullets.get(i);
                 if (!bullet.isVisible()) {
@@ -286,7 +309,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
             Bullet bullet = bullets.get(i);
             if (bullet.isVisible()) {
                 bullet.update(delta);
-                if (checkWallIntersect(bullet.getBody2d())) {
+                if (worldManager.checkWallIntersect(bullet.getBody2d())) {
                     bullet.hide();
                     soundManager.playSoundMono(SoundManager.sfxImpact);
                 }
@@ -306,59 +329,59 @@ public class GameActivity extends Activity implements SmartGLViewController {
         update(frameDuration, renderer.getCamera());
     }
 
-
-    private boolean checkWallIntersect(Body2d body2d) {
-
-        for (int i = 0; i < solids.size(); i++) {
-            Body2d wall = solids.get(i);
-            if (intersect(wall, body2d)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean checkWallPlayerIntersect(float pX, float pZ) {
-
-        for (int i = 0; i < solids.size(); i++) {
-            Body2d wall = solids.get(i);
-            if (intersectPlayer(wall, pX, pZ)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-
-    private boolean intersect(Body2d o1, Body2d o2) {
-        float dx = Math.abs(o1.x - o2.x);
-        float dz = Math.abs(o1.z - o2.z);
-        float a = o1.width;
-        float b = o1.height;
-        float c = o2.width;
-        float d = o2.height;
-
-        float dMax = (a + c) / 2;
-        float eMax = (b + d) / 2;
-
-        return (dx < dMax) && (dz < eMax);
-    }
-
-    private boolean intersectPlayer(Body2d o1, float pX, float pZ) {
-        float dx = Math.abs(o1.x - pX);
-        float dz = Math.abs(o1.z - pZ);
-        float a = o1.width;
-        float b = o1.height;
-
-        float dMax = (a + PLAYER_WIDTH) / 2;
-        float eMax = (b + PLAYER_HEIGHT) / 2;
-        return (dx < dMax) && (dz < eMax);
-    }
+//
+//    private boolean checkWallIntersect(Body2d body2d) {
+//
+//        for (int i = 0; i < solids.size(); i++) {
+//            Body2d wall = solids.get(i);
+//            if (intersect(wall, body2d)) {
+//                return true;
+//            }
+//        }
+//        return false;
+//    }
+//
+//    private boolean checkWallwithCharIntersect(float pX, float pZ) {
+//
+//        for (int i = 0; i < solids.size(); i++) {
+//            Body2d wall = solids.get(i);
+//            if (intersectPlayer(wall, pX, pZ)) {
+//                return true;
+//            }
+//        }
+//        return false;
+//    }
+//
+//
+//    private boolean intersect(Body2d o1, Body2d o2) {
+//        float dx = Math.abs(o1.x - o2.x);
+//        float dz = Math.abs(o1.z - o2.z);
+//        float a = o1.width;
+//        float b = o1.height;
+//        float c = o2.width;
+//        float d = o2.height;
+//
+//        float dMax = (a + c) / 2;
+//        float eMax = (b + d) / 2;
+//
+//        return (dx < dMax) && (dz < eMax);
+//    }
+//
+//    private boolean intersectPlayer(Body2d o1, float pX, float pZ) {
+//        float dx = Math.abs(o1.x - pX);
+//        float dz = Math.abs(o1.z - pZ);
+//        float a = o1.width;
+//        float b = o1.height;
+//
+//        float dMax = (a + CHARACTER_WIDTH) / 2;
+//        float eMax = (b + CHARACTER_HEIGHT) / 2;
+//        return (dx < dMax) && (dz < eMax);
+//    }
 
     private void movePlayerUp() {
         dx = 0;
         dz = -1;
-        character.setRotY(-90);
+//        player.setRotY(-90);
         cameraTargetX = 0;
         cameraTargetZ = -5;
     }
@@ -366,7 +389,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
     private void movePlayerDown() {
         dx = 0;
         dz = 1;
-        character.setRotY(90);
+//        player.setRotY(90);
         cameraTargetX = 0;
         cameraTargetZ = 5;
     }
@@ -375,7 +398,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
 
         dx = -1;
         dz = 0;
-        character.setRotY(0);
+//        player.setRotY(0);
         cameraTargetX = -5;
         cameraTargetZ = 0;
     }
@@ -383,7 +406,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
     private void movePlayerRight() {
         dx = 1;
         dz = 0;
-        character.setRotY(180);
+//        player.setRotY(180);
         cameraTargetX = 5;
         cameraTargetZ = 0;
     }
