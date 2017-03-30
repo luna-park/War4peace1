@@ -145,7 +145,7 @@ public class WorldManager {
     }
 
 
-    private boolean intersect(Body2d o1, Body2d o2) {
+    public boolean intersect(Body2d o1, Body2d o2) {
         float dx = Math.abs(o1.x - o2.x);
         float dz = Math.abs(o1.z - o2.z);
         float a = o1.width;
@@ -159,7 +159,7 @@ public class WorldManager {
         return (dx < dMax) && (dz < eMax);
     }
 
-    private boolean intersectPlayer(Body2d o1, float pX, float pZ) {
+    public boolean intersectPlayer(Body2d o1, float pX, float pZ) {
         float dx = Math.abs(o1.x - pX);
         float dz = Math.abs(o1.z - pZ);
         float a = o1.width;

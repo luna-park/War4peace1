@@ -21,7 +21,7 @@ public class Consts {
     public static final float CHARACTER_WIDTH = 1;
     public static final float CHARACTER_HEIGHT = 1;
     public static final int SPEED_PLAYER = 10;
-    public static final int SPEED_LEGS = 8;
+    public static final int SPEED_LEGS = 500;
 
     // Camera
     public static final int CAMERA_Y = 15; // Height 15 (1)
@@ -33,4 +33,7 @@ public class Consts {
     public static final int MAX_BULLETS = 100; // maximum bullets
     public static final int BULLET_SPEED = 5;
     public static final int BULLET_DISTANCE = 10; // after this bullet
+
+    // Bot
+    public static final int BOT_RANGE = 20;
 }
