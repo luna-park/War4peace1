@@ -4,12 +4,14 @@ import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.Display;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.TextView;
 
 import org.lunapark.dev.war4peace1.managers.ArtificialIntelligence;
 import org.lunapark.dev.war4peace1.managers.ObjectManager;
@@ -22,6 +24,9 @@ import org.lunapark.dev.war4peace1.objects.Character;
 import org.lunapark.dev.war4peace1.objects.CharacterData;
 
 import java.util.ArrayList;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import fr.arnaudguyon.smartgl.opengl.Object3D;
 import fr.arnaudguyon.smartgl.opengl.OpenGLCamera;
@@ -49,6 +54,10 @@ public class GameActivity extends Activity implements SmartGLViewController {
     // Android
     private SmartGLView mSmartGLView;
     private int screenX, screenXhalf;
+    private TextView tvInfo;
+    private float globalDelta;
+    private Handler handler;
+    private Runnable updateTextView;
 
     // Engine
     private ObjectManager objectManager;
@@ -104,6 +113,18 @@ public class GameActivity extends Activity implements SmartGLViewController {
         mSmartGLView.setDefaultRenderer(this);
         mSmartGLView.setController(this);
 
+        tvInfo = (TextView) findViewById(R.id.tvInfo);
+
+
+        handler = new Handler();
+        updateTextView = new Runnable() {
+            @Override
+            public void run() {
+                tvInfo.setText(String.format(Locale.US, "FPS: %.1f", 1 / globalDelta));
+            }
+        };
+
+
         Button btnFire = (Button) findViewById(R.id.btnFire);
         btnFire.setOnTouchListener(new View.OnTouchListener() {
             @Override
@@ -119,7 +140,6 @@ public class GameActivity extends Activity implements SmartGLViewController {
                 return true;
             }
         });
-
     }
 
 
@@ -128,7 +148,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
         SmartGLRenderer renderer = smartGLView.getSmartGLRenderer();
 
         RenderPassObject3D.ShaderType shaderType = RenderPassObject3D.ShaderType.SHADER_TEXTURE;
-        RenderPassObject3D renderPassObject3D = new RenderPassObject3D(shaderType, false, true);
+        RenderPassObject3D renderPassObject3D = new RenderPassObject3D(shaderType, true, true);
 
         RenderPassSprite renderPassSprite = new RenderPassSprite();
 
@@ -158,21 +178,38 @@ public class GameActivity extends Activity implements SmartGLViewController {
         txDead = textureManager.createTexture(Color.RED);
         txEnemy = textureManager.createTexture(this, R.drawable.enemy);
 
-        player = new Character(objectManager, soundManager);
-        player.define(txPlayer, txLeg, txFire, txDead, 2.5f, 2, 1);
-        player.setBulletSpawn(1.4f, 0.26f);
+        int a = 10;
+        int b = 10;
 
-
+        // Define enemies and their dead bodies
         enemies = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            for (int j = 0; j < 10; j++) {
+        for (int i = 0; i < a; i++) {
+            for (int j = 0; j < b; j++) {
                 Character enemy = new Character(objectManager, soundManager);
-                enemy.define(txEnemy, txLeg, txFire, txDead, 2.5f, 2, 1);
-                enemy.setBulletSpawn(1.4f, 0.26f);
-                enemy.getBase().setPos(10 * i + 10, 1, 20 + 20 * j);
+                enemy.defineDeadBody(txDead, 2);
                 enemies.add(enemy);
             }
         }
+
+        // Define player and his dead body
+        player = new Character(objectManager, soundManager);
+        player.defineDeadBody(txDead, 2);
+
+        // Define enemies textures
+        int c = 0;
+        for (int i = 0; i < a; i++) {
+            for (int j = 0; j < b; j++) {
+                Character enemy = enemies.get(c);
+                enemy.define(txEnemy, txLeg, txFire, 2.5f, 1);
+                enemy.setBulletSpawn(1.4f, 0.26f);
+                enemy.getBase().setPos(10 * i + 10, 1, 30 - 20 * j);
+                c++;
+            }
+        }
+
+        // Define player textures
+        player.define(txPlayer, txLeg, txFire, 2.5f, 1);
+        player.setBulletSpawn(1.4f, 0.26f);
 
         defineBullets();
         defineJoystick(renderPassSprite);
@@ -231,6 +268,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
     }
 
     private void update(float delta, OpenGLCamera camera) {
+
         float playerX = player.getBase().getPosX();
         float playerY = player.getBase().getPosY();
         float playerZ = player.getBase().getPosZ();
@@ -336,7 +374,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
                 }
                 for (int j = 0; j < enemies.size(); j++) {
                     Character enemy = enemies.get(j);
-                    if (worldManager.intersectPlayer(bullet.getBody2d(), enemy.getBase().getPosX(), enemy.getBase().getPosZ())) {
+                    if (enemy.getHealth() > 0 && worldManager.intersectPlayer(bullet.getBody2d(), enemy.getBase().getPosX(), enemy.getBase().getPosZ())) {
                         enemy.damage();
                         bullet.hide();
                         soundManager.playSoundMono(SoundManager.sfxImpact);
@@ -355,6 +393,10 @@ public class GameActivity extends Activity implements SmartGLViewController {
     public void onTick(SmartGLView smartGLView) {
         SmartGLRenderer renderer = smartGLView.getSmartGLRenderer();
         float frameDuration = renderer.getFrameDuration();
+        if (frameDuration < 0.02f) frameDuration = 0.02f;
+        if (frameDuration > 0.04f) frameDuration = 0.04f;
+        globalDelta = frameDuration;
+        handler.post(updateTextView);
         update(frameDuration, renderer.getCamera());
     }
 

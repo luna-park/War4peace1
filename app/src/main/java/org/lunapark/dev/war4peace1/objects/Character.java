@@ -36,7 +36,7 @@ public class Character {
         health = 100;
     }
 
-    public void define(Texture txBody, Texture txLeg, Texture txFire, Texture txDead, float bodyScaleX, float deadScaleX, float height) {
+    public void define(Texture txBody, Texture txLeg, Texture txFire, float bodyScaleX, float height) {
         legLeft = objectManager.createObject(R.raw.plane_l, txLeg);
         legLeft.setScale(height, 1, 0.25f);
         legRight = objectManager.createObject(R.raw.plane_r, txLeg);
@@ -46,13 +46,17 @@ public class Character {
         base.setPos(0, height, 0);
         body = objectManager.createObject(R.raw.plane, txBody);
         body.setScale(bodyScaleX, 1, 1);
-        deadbody = objectManager.createObject(R.raw.plane, txDead);
-        deadbody.setScale(deadScaleX, 1, 1);
-        deadbody.setVisible(false);
+
 
         bulletSpawn = objectManager.createObject(R.raw.plane, txFire);
         bulletSpawn.setScale(0.2f, 0.2f, 0.2f);
         bulletSpawn.setVisible(false);
+    }
+
+    public void defineDeadBody(Texture txDead, float deadScaleX) {
+        deadbody = objectManager.createObject(R.raw.plane, txDead);
+        deadbody.setScale(deadScaleX, 1, 1);
+        deadbody.setVisible(false);
     }
 
     public void setBulletSpawn(float bulletSpawnX, float bulletSpawnZ) {
