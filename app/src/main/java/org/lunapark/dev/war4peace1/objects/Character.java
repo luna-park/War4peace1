@@ -23,6 +23,7 @@ public class Character {
 
     private long fireTime;
     private int health;
+    private int dx, dz;
 
     // Default bullet spawn
     private float bulletSpawnX = 1.4f;
@@ -47,7 +48,6 @@ public class Character {
         body = objectManager.createObject(R.raw.plane, txBody);
         body.setScale(bodyScaleX, 1, 1);
 
-
         bulletSpawn = objectManager.createObject(R.raw.plane, txFire);
         bulletSpawn.setScale(0.2f, 0.2f, 0.2f);
         bulletSpawn.setVisible(false);
@@ -64,13 +64,16 @@ public class Character {
         bulletSpawnAngle = (float) Math.toDegrees(Math.atan(bulletSpawnZ / bulletSpawnX));
     }
 
-    public void update(float delta, float deltaX, float deltaZ, float x, float y, float z, boolean animateLegs) {
+    public void update(float delta, int deltaX, int deltaZ, float x, float y, float z, boolean animateLegs) {
+        dx = deltaX;
+        dz = deltaZ;
+
         if (health > 0) {
             if (animateLegs) {
                 if (deltaX != 0 || deltaZ != 0) {
                     if ((legsAngle1 >= 140) || (legsAngle1 <= 40)) {
                         legsMult = -legsMult;
-                        soundManager.playSoundMono(SoundManager.sfxStep);
+//                        soundManager.playSoundMono(SoundManager.sfxStep);
                     }
                     float legsDelta = SPEED_LEGS * legsMult * delta;
                     legsAngle1 += legsDelta;
@@ -165,5 +168,13 @@ public class Character {
 
     public int getHealth() {
         return health;
+    }
+
+    public int getDx() {
+        return dx;
+    }
+
+    public int getDz() {
+        return dz;
     }
 }

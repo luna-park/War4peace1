@@ -31,9 +31,13 @@ public class Consts {
     // Gun fire
     public static final int FIRE_RATE = 100; // milliseconds
     public static final int MAX_BULLETS = 100; // maximum bullets
-    public static final int BULLET_SPEED = 5;
-    public static final int BULLET_DISTANCE = 10; // after this bullet
+    public static final int BULLET_SPEED = 20;
+    public static final int BULLET_LIFE_TIME = 2000; // milliseconds
 
     // Bot
-    public static final int BOT_RANGE = 20;
+    public static final int BOT_RANGE = 2; // 20
+    public static final int BOT_MIN_RANGE = 2;
+    public static final int BOT_SEEK_STEP = 1;
+    public static final float BOT_SPEED = SPEED_PLAYER * 0.75f;
+    public static final int BOT_BRAIN_TIME = 2000; // ms
 }

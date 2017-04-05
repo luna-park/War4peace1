@@ -13,20 +13,19 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
 
-import org.lunapark.dev.war4peace1.managers.ArtificialIntelligence;
+import org.lunapark.dev.war4peace1.managers.BotFather;
 import org.lunapark.dev.war4peace1.managers.ObjectManager;
 import org.lunapark.dev.war4peace1.managers.SoundManager;
 import org.lunapark.dev.war4peace1.managers.TextureManager;
 import org.lunapark.dev.war4peace1.managers.WorldManager;
 import org.lunapark.dev.war4peace1.objects.Body2d;
+import org.lunapark.dev.war4peace1.objects.Bot;
 import org.lunapark.dev.war4peace1.objects.Bullet;
 import org.lunapark.dev.war4peace1.objects.Character;
 import org.lunapark.dev.war4peace1.objects.CharacterData;
 
 import java.util.ArrayList;
 import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import fr.arnaudguyon.smartgl.opengl.Object3D;
 import fr.arnaudguyon.smartgl.opengl.OpenGLCamera;
@@ -41,6 +40,7 @@ import fr.arnaudguyon.smartgl.touch.TouchHelperEvent;
 
 import static android.view.MotionEvent.ACTION_DOWN;
 import static android.view.MotionEvent.ACTION_UP;
+import static org.lunapark.dev.war4peace1.utils.Consts.BOT_SPEED;
 import static org.lunapark.dev.war4peace1.utils.Consts.CAMERA_SPEED;
 import static org.lunapark.dev.war4peace1.utils.Consts.CAMERA_X_ANGLE;
 import static org.lunapark.dev.war4peace1.utils.Consts.CAMERA_Y;
@@ -64,16 +64,16 @@ public class GameActivity extends Activity implements SmartGLViewController {
     private TextureManager textureManager;
     private WorldManager worldManager;
     private SoundManager soundManager;
-    private ArtificialIntelligence artificialIntelligence;
+    private BotFather botFather;
 
     // Textures
     private Texture txFire;
     private Texture txBody, txLeg, txPlayer, txTransparent, txDead, txEnemy;
 
     // Player
-    private float dx, dz;
+    private int dx, dz;
     private Character player;
-    private ArrayList<Character> enemies;
+    private ArrayList<Bot> enemies;
 
     // Game
     private boolean gameover = false;
@@ -185,7 +185,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
         enemies = new ArrayList<>();
         for (int i = 0; i < a; i++) {
             for (int j = 0; j < b; j++) {
-                Character enemy = new Character(objectManager, soundManager);
+                Bot enemy = new Bot(objectManager, soundManager);
                 enemy.defineDeadBody(txDead, 2);
                 enemies.add(enemy);
             }
@@ -213,7 +213,7 @@ public class GameActivity extends Activity implements SmartGLViewController {
 
         defineBullets();
         defineJoystick(renderPassSprite);
-        artificialIntelligence = new ArtificialIntelligence(worldManager);
+        botFather = new BotFather(worldManager);
     }
 
     private void defineJoystick(RenderPassSprite renderPassSprite) {
@@ -295,21 +295,21 @@ public class GameActivity extends Activity implements SmartGLViewController {
 
     private void updateEnemy(float delta) {
         for (int i = 0; i < enemies.size(); i++) {
-            Character enemy = enemies.get(i);
+            Bot enemy = enemies.get(i);
 
             float x = enemy.getBase().getPosX();
             float y = enemy.getBase().getPosY();
             float z = enemy.getBase().getPosZ();
 
             if (enemy.getHealth() > 0) {
-                CharacterData data = artificialIntelligence.getData(enemy, player);
+                CharacterData data = botFather.getData(enemy, player);
 
-                float dx = data.deltaX;
-                float dz = data.deltaZ;
+                int dx = data.deltaX;
+                int dz = data.deltaZ;
                 if (data.canShoot) gunfire(enemy);
 
-                float newX = x + dx * delta * SPEED_PLAYER * 0.75f;
-                float newZ = z + dz * delta * SPEED_PLAYER * 0.75f;
+                float newX = x + dx * delta * BOT_SPEED;
+                float newZ = z + dz * delta * BOT_SPEED;
 
                 boolean collision = worldManager.checkWallwithCharIntersect(newX, newZ);
 

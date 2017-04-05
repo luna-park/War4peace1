@@ -2,7 +2,7 @@ package org.lunapark.dev.war4peace1.objects;
 
 import fr.arnaudguyon.smartgl.opengl.Object3D;
 
-import static org.lunapark.dev.war4peace1.utils.Consts.BULLET_DISTANCE;
+import static org.lunapark.dev.war4peace1.utils.Consts.BULLET_LIFE_TIME;
 import static org.lunapark.dev.war4peace1.utils.Consts.BULLET_SPEED;
 
 /**
@@ -16,6 +16,7 @@ public class Bullet {
     private float angle, distance;
     private float bulletX, bulletY, bulletZ;
     private final Body2d body2d;
+    private long lifetime;
 
     public Bullet(Object3D object3D, Body2d body2d) {
         this.object3D = object3D;
@@ -31,19 +32,21 @@ public class Bullet {
         bulletY = y;
         bulletZ = z;
         distance = 0;
+        lifetime = System.currentTimeMillis();
     }
 
     public void update(float delta) {
         if (object3D.isVisible()) {
-            distance += delta * BULLET_SPEED;
+            distance = delta * BULLET_SPEED;
             bulletX -= distance * Math.cos(angle);
             bulletZ += distance * Math.sin(angle);
             object3D.setPos(bulletX, bulletY, bulletZ);
-        }
 
-        if (distance > BULLET_DISTANCE) {
-            object3D.setVisible(false);
-            distance = 0;
+
+            if (System.currentTimeMillis() - lifetime > BULLET_LIFE_TIME) {
+                object3D.setVisible(false);
+                distance = 0;
+            }
         }
     }
 
