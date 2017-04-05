@@ -34,6 +34,7 @@ public class Bot extends Character {
     }
 
     public boolean busy() {
+        if (currentState == BotState.SEEK) return true;
         long currentTime = System.currentTimeMillis();
         if (currentTime - timer > BOT_BRAIN_TIME) {
             timer = currentTime;

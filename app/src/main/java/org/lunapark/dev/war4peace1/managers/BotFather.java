@@ -1,8 +1,9 @@
 package org.lunapark.dev.war4peace1.managers;
 
-import android.graphics.Point;
+import android.util.Log;
 
 import org.lunapark.dev.war4peace1.ai.WaveAlgorithm;
+import org.lunapark.dev.war4peace1.ai.WaveCell;
 import org.lunapark.dev.war4peace1.objects.Body2d;
 import org.lunapark.dev.war4peace1.objects.Bot;
 import org.lunapark.dev.war4peace1.objects.Character;
@@ -12,9 +13,7 @@ import org.lunapark.dev.war4peace1.objects.Point2d;
 import java.util.Random;
 import java.util.Stack;
 
-import static org.lunapark.dev.war4peace1.utils.Consts.BOT_MIN_RANGE;
 import static org.lunapark.dev.war4peace1.utils.Consts.BOT_RANGE;
-import static org.lunapark.dev.war4peace1.utils.Consts.BOT_SEEK_STEP;
 import static org.lunapark.dev.war4peace1.utils.Consts.CHARACTER_HEIGHT;
 import static org.lunapark.dev.war4peace1.utils.Consts.CHARACTER_WIDTH;
 
@@ -58,7 +57,7 @@ public class BotFather {
             sight.x = x + i * dx;
             sight.z = z + i * dz;
             // Check intersect with player
-            boolean intersect = worldManager.intersectPlayer(sight, playerX, playerZ);
+            boolean intersect = worldManager.intersectCharacter(sight, playerX, playerZ);
             if (intersect) return true;
             // Check intersect with walls
             intersect = worldManager.checkWallIntersect(sight);
@@ -81,39 +80,24 @@ public class BotFather {
             Bot.BotState botState = bot.getState();
 
             if (botState == Bot.BotState.IDLE) {
-//                createSeekPath(bot, playerX, playerZ);
+                createSeekPath(bot, playerX, playerZ);
                 bot.setState(Bot.BotState.SEEK);
             }
 
             if (botState == Bot.BotState.SEEK) {
 //                seek(bot);
-                data.canShoot = checkStraightSight(dx, dz, x, z, playerX, playerZ);
-            }
 
-//            if (x > playerX + 1) {
-//                dx = -1;
-//                dz = 0;
-//            }
-//
-//            if (x < playerX - 1) {
-//                dx = 1;
-//                dz = 0;
-//            }
-//
-//            if (z > playerZ + 1) {
-//                dx = 0;
-//                dz = -1;
-//            }
-//
-//            if (z < playerZ - 1) {
-//                dx = 0;
-//                dz = 1;
-//            }
+            }
+            dx = bot.getDx();
+            dz = bot.getDz();
+            data.canShoot = checkStraightSight(dx, dz, x, z, playerX, playerZ);
+
         } else {
-            data.canShoot = false;
+
             bot.setState(Bot.BotState.IDLE);
+            data.canShoot = false;
             if (!bot.busy()) {
-                int rand = random.nextInt(5);
+                int rand = random.nextInt(10);
                 switch (rand) {
                     case 0:
                         dx = 1;
@@ -131,8 +115,10 @@ public class BotFather {
                         dx = 0;
                         dz = -1;
                         break;
-                    case 4:
-                        break;
+//                    case 4:
+//                        dx = 0;
+//                        dz = 0;
+//                        break;
                 }
 
             } else {
@@ -140,6 +126,7 @@ public class BotFather {
                 dz = bot.getDz();
             }
         }
+
         data.deltaX = dx;
         data.deltaZ = dz;
         return data;
@@ -148,31 +135,74 @@ public class BotFather {
     // TODO Create bot path
     private void createSeekPath(Bot bot, float playerX, float playerZ) {
         Stack<Point2d> seekPath = bot.getSeekPath();
-        float x = bot.getBase().getPosX();
-        float z = bot.getBase().getPosZ();
+        float botX = bot.getBase().getPosX();
+        float botZ = bot.getBase().getPosZ();
         float distance;
-        do {
-            distance = worldManager.getDistance2d(x, z, playerX, playerZ);
-            Point2d point = new Point2d();
-            float pX = x;
-            float pZ = z;
 
-            if (x > playerX && x < playerX + CHARACTER_WIDTH) {
-                pX -= BOT_SEEK_STEP;
-            } else if (x < playerX && x > playerX - CHARACTER_WIDTH) {
-                pX += BOT_SEEK_STEP;
-            } else if (z > playerZ && z < playerZ + CHARACTER_HEIGHT) {
-                pZ -= BOT_SEEK_STEP;
-            } else if (z < playerX && z > playerZ - CHARACTER_HEIGHT) {
-                pZ += BOT_SEEK_STEP;
+        int gridSize = waveAlgorithm.getSize();
+        WaveCell[][] grid = waveAlgorithm.getGrid();
+        boolean playerFound = false;
+        boolean botFound = false;
+        // Place bot in center of grid
+        int mid = gridSize / 2;
+        int iBotX = Math.round(botX);
+        int iBotZ = Math.round(botZ);
+
+//        grid[mid][mid].value = 0;
+        for (int i = 0; i < gridSize; i++) {
+            for (int j = 0; j < gridSize; j++) {
+                WaveCell waveCell = grid[i][j];
+                int x = iBotX - mid + i;
+                int z = iBotZ - mid + j;
+                int value = -2;
+                seeker.x = x;
+                seeker.z = z;
+
+                if (worldManager.checkWallIntersect(seeker)) value = -1;
+                if (worldManager.intersectCharacter(seeker, playerX, playerZ) && !playerFound) {
+                    value = -3;
+                    playerFound = true;
+                }
+                if (worldManager.intersectCharacter(seeker, botX, botZ) && !botFound) {
+                    value = 0;
+                    botFound = true;
+                }
+
+                waveCell.value = value;
             }
+        }
 
-            point.x = pX;
-            point.z = pZ;
+        Log.e("GRID", "-------------------- Wave grid with walls ---------------");
+        for (int i = 0; i < gridSize; i++) {
+            String s = "";
+            for (int j = 0; j < gridSize; j++) {
+                s += grid[i][j].value + " ";
+            }
+            Log.e("GRID", s);
+        }
 
-            seekPath.add(point);
-
-        } while (distance > BOT_MIN_RANGE);
+//        do {
+//            distance = worldManager.getDistance2d(x, z, playerX, playerZ);
+//            Point2d point = new Point2d();
+//            float pX = x;
+//            float pZ = z;
+//
+//            if (x > playerX && x < playerX + CHARACTER_WIDTH) {
+//                pX -= BOT_SEEK_STEP;
+//            } else if (x < playerX && x > playerX - CHARACTER_WIDTH) {
+//                pX += BOT_SEEK_STEP;
+//            } else if (z > playerZ && z < playerZ + CHARACTER_HEIGHT) {
+//                pZ -= BOT_SEEK_STEP;
+//            } else if (z < playerX && z > playerZ - CHARACTER_HEIGHT) {
+//                pZ += BOT_SEEK_STEP;
+//            }
+//
+//            point.x = pX;
+//            point.z = pZ;
+//
+//            seekPath.add(point);
+//
+//        } while (distance > BOT_MIN_RANGE);
 
 
     }

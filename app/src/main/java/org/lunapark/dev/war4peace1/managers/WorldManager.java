@@ -137,7 +137,7 @@ public class WorldManager {
 
         for (int i = 0; i < solids.size(); i++) {
             Body2d wall = solids.get(i);
-            if (intersectPlayer(wall, pX, pZ)) {
+            if (intersectCharacter(wall, pX, pZ)) {
                 return true;
             }
         }
@@ -159,9 +159,9 @@ public class WorldManager {
         return (dx < dMax) && (dz < eMax);
     }
 
-    public boolean intersectPlayer(Body2d o1, float pX, float pZ) {
-        float dx = Math.abs(o1.x - pX);
-        float dz = Math.abs(o1.z - pZ);
+    public boolean intersectCharacter(Body2d o1, float characterX, float characterZ) {
+        float dx = Math.abs(o1.x - characterX);
+        float dz = Math.abs(o1.z - characterZ);
         float a = o1.width;
         float b = o1.height;
 

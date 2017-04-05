@@ -7,6 +7,5 @@ package org.lunapark.dev.war4peace1.ai;
 
 public class WaveCell {
     public int x, y; // координаты ячейки
-    public int count; // номер шага
-    public boolean free; // доступно
+    public int value; // номер шага или 0 - старт, -1 - стена, -2 - пусто, -3 - финиш
 }

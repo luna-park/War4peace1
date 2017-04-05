@@ -367,14 +367,14 @@ public class GameActivity extends Activity implements SmartGLViewController {
                     bullet.hide();
                     soundManager.playSoundMono(SoundManager.sfxImpact);
                 }
-                if (worldManager.intersectPlayer(bullet.getBody2d(), player.getBase().getPosX(), player.getBase().getPosZ())) {
+                if (worldManager.intersectCharacter(bullet.getBody2d(), player.getBase().getPosX(), player.getBase().getPosZ())) {
 //                    player.damage();
                     bullet.hide();
                     soundManager.playSoundMono(SoundManager.sfxImpact);
                 }
                 for (int j = 0; j < enemies.size(); j++) {
                     Character enemy = enemies.get(j);
-                    if (enemy.getHealth() > 0 && worldManager.intersectPlayer(bullet.getBody2d(), enemy.getBase().getPosX(), enemy.getBase().getPosZ())) {
+                    if (enemy.getHealth() > 0 && worldManager.intersectCharacter(bullet.getBody2d(), enemy.getBase().getPosX(), enemy.getBase().getPosZ())) {
                         enemy.damage();
                         bullet.hide();
                         soundManager.playSoundMono(SoundManager.sfxImpact);

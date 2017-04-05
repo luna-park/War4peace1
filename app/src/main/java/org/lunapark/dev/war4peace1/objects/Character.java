@@ -65,12 +65,13 @@ public class Character {
     }
 
     public void update(float delta, int deltaX, int deltaZ, float x, float y, float z, boolean animateLegs) {
-        dx = deltaX;
-        dz = deltaZ;
+
 
         if (health > 0) {
             if (animateLegs) {
                 if (deltaX != 0 || deltaZ != 0) {
+                    dx = deltaX;
+                    dz = deltaZ;
                     if ((legsAngle1 >= 140) || (legsAngle1 <= 40)) {
                         legsMult = -legsMult;
 //                        soundManager.playSoundMono(SoundManager.sfxStep);
